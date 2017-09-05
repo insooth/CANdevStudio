@@ -5,6 +5,7 @@
 #include <cassert> // assert
 #include <atomic>
 #include <functional>  // function
+#include <mutex>  // once_flag, call_once
 #include <type_traits> // is_same, add_pointer
 
 
@@ -45,16 +46,10 @@ class WithExplicitInit
       : _body{f}
     {}
 
-    /**
-     * Runs @c init against given @c _body exactly once.
-     *
-     * @warning This function is not thread safe.
-     */
+    /** Runs @c init against given @c _body exactly once. */
     void prepare()
     {
-        static int dummy = (static_cast<T*>(this)->init(_body), 0);
-
-        (void) dummy;
+        std::call_once(_prepared, [this] { static_cast<T*>(this)->init(_body); });
     }
 
  private:
@@ -67,6 +62,7 @@ class WithExplicitInit
     }
 
     std::function<R (T&)> _body;
+    std::once_flag        _prepared;
 };
 
 

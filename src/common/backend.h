@@ -14,7 +14,79 @@
 #include <utility> // forward, declval
 
 
-
+/**
+ * Parametrised types @c UsesBackend and @c WithBackend ship with a reusable
+ * solution that enables testable private part of the Qt D-Pointer architecture
+ * (a variation of the PIMPL idiom).
+ *
+ * The public part of the PIMPL (the one that used to store @c d_ptr and to use
+ * @c Q_D macro) derives publicly from @c UsesBackend, while the private part
+ * (used to store @c q_ptr to the public part of the PIMPL, and to use @c Q_Q
+ * macro) derives from @c WithBackend. The "with" part manages (or references
+ * if created externally and passed to it) the "backend". The "backend" is an
+ * object of an instance of @c BackendBase parametrised type. If "backend" is
+ * created externally and passed through reference to one of the @c UsesBackend
+ * constructors, its lifetime is not a subject of the private part. Otherwise,
+ * private part allocates required memory and forwards (if specified) arguments
+ * from "uses", through "with", to the "backend"'s constructor. The type of the
+ * "backend" to be created is selected via @c BackendSelectorTag that carries
+ * the "backend" type. If no tag specified, "backend" of type instantiated from
+ * @c BackendDefaultBase is created. The two required "backend" type generators,
+ * i.e. @c BackendBase and @c BackendDefaultBase are templates parametrised by
+ * @c Subject which is a tag used to distinguish the "backend" types.
+ *
+ * NOTE: There must be an specialisation of @c BackendBase<Subject> and of
+ *       @c BackendDefaultBase<Subject> available for every used @c Subject.
+ *
+ * Type that derives from "uses" or "with" template must bring their constructors
+ * in its public scope through @c using declaration (i.e. inherit constructors),
+ * and put as a last member macro @c EXPLICIT_INIT to handle the class init.
+ *
+ * NOTE: Types derived from @c UsesBackend and @c WithBackend MUST use so called
+ *       member-initializer to initialise their members directly in the class's
+ *       body. That's due to fact, no direct access to the constructor of the
+ *       derived type is possible. Any other initialisation code can be injected
+ *       through "uses" and "with" constructors.
+ *
+ * Constructors in "uses" types use tag dispatch, i.e. constructor is selected
+ * through its first argument that is one of the @c UsesBackendCtor_* types.
+ * Constraints are executed against passed arguments during compile-time.
+ *
+ * Constructor in "with" types are executed by "uses" constructors, there shall
+ * be no need to run them explicitly in the user code.
+ *
+ * Following constructors are inherited from the @c UsesBackend instance:
+ * - Default   : creates "backend" of type @c BackendDefaultBase<Subject>.
+ * - Non-owning: @b references "backend" of type (or of type derived from)
+ *               @c BackendBase<Subject>.
+ * - ActionQ   : creates "backend" of type @c BackendDefaultBase<Subject> and
+ *               forwards passed arguments to it, and takes and action to init
+ *               the "public part" of the PIMPL (i.e. class derived from "uses").
+ * - ActionD   : same as ActionQ, but the passed action initialises the
+ *               "private part" of the PIMPL.
+ * - Selector  : takes a selector object that is of type which is an instance
+ *               of @c BackendSelectorTag object, and arguments to be passed
+ *               to the "backend" of type carried by the selector that will be
+ *               created internally.
+ * - Actions   : creates "backend" as Default ctor does, and takes actions
+ *               and arguments as ActionQ and ActionD do.
+ * - Init-only : @b references passed "backend" and executes passed action
+ *               in the "public part" of the PIMPL.
+ * - Explicit  : takes actions as ActionQ and ActionD ctors, and args and
+ *               a selector as Selector ctor.
+ * - Args      : creates "backend" of type as Default and forwards passed
+ *               arguments to i.
+ *
+ * Following public member functions are exposed:
+ * - UsesBackend::impl()    -- returns reference to the PIMPL's "private part".
+ * - WithBackend::backend() -- returns reference to the associated "backend".
+ *
+ * @see UsesUIBackend and WithUIBackend for example instances of "uses" and "with" templates.
+ * @see UIBackendSelectorTag and UIBackendSelector for example "backend" selector utility.
+ * @see UIBackend and UIBackendDefault for example two required "backend" generators.
+ *
+ * @{
+ */
 template<template<class> class BackendSelectorTag>
 struct BackendTraits
 {
@@ -61,7 +133,7 @@ class WithBackend;
 
 template<
     class Derived
-  , class PrivateWithBackend
+  , class PrivateWithBackend  // d_ptr's element_type
   , class Subject  // the tag passed to Backend*Base
   , template<class> class BackendBase
   , template<class> class BackendSelectorTag
@@ -274,7 +346,7 @@ class UsesBackend
 
 template<
     class Derived
-  , class BackendUser
+  , class BackendUser // WithBackend<...> instance
   , class Subject  // the tag passed to BackendBase
   , template<class> class BackendBase  // base class for backends
   , template<class> class BackendSelectorTag
@@ -332,10 +404,10 @@ class WithBackend
     WithBackend(F&& init, const ImplSelector&, BackendUser& user, As&&... args)
       :
         WithExplicitInit<Derived>{std::forward<F>(init)}
-      , uiRep{std::make_unique<
+      , rep{std::make_unique<
                     typename std::remove_reference_t<ImplSelector>::type
                   >(std::forward<As>(args)...)}
-      , uiHandle{uiRep.get()}
+      , handle{rep.get()}
       , q_ptr{&user}
     {
         static_assert(std::is_base_of< BackendBase<Subject>
@@ -352,7 +424,7 @@ class WithBackend
     WithBackend(F&& init, BackendUser& user, BackendBase<Subject>& backend)
       :
         WithExplicitInit<Derived>{std::forward<F>(init)}
-      , uiHandle{&backend}
+      , handle{&backend}
       , q_ptr{&user}
     {}
 
@@ -360,34 +432,35 @@ class WithBackend
 
     BackendBase<Subject>& backend()
     {
-        assert(nullptr != uiHandle);
+        assert(nullptr != handle);
 
-        return *uiHandle;
+        return *handle;
     }
 
     const BackendBase<Subject>& backend() const
     {
-        assert(nullptr != uiHandle);
+        assert(nullptr != handle);
 
-        return *uiHandle;
+        return *handle;
     }
 
  protected:
 
-    /** @{ If backend is passed explicitly in constructor, uiHandle stores
-     *     pointer to it, and backend memory is not managed by uiRep.
-     *     Otherwise, uiRep manages memory.
+    /** @{ If backend is passed explicitly in constructor, handle stores
+     *     pointer to it, and backend memory is not managed by rep.
+     *     Otherwise, rep manages memory.
      *
-     *     NEVER perform delete on uiHandle.
-     *     DO NOT reorder uiRep and uiHandle.
+     *     NEVER perform delete on handle.
+     *     DO NOT reorder rep and handle.
      *
      * */
-    std::unique_ptr<BackendBase<Subject>> uiRep;    /**< NOTE: stores BackendBase<Subject> subclass */
-    BackendBase<Subject>*                 uiHandle; /**< uiRep observer. */
+    std::unique_ptr<BackendBase<Subject>> rep;    /**< NOTE: stores BackendBase<Subject> subclass */
+    BackendBase<Subject>*                 handle; /**< rep observer. */
     /** @} */
 
     BackendUser* const q_ptr; /**< Respective *Public type for the *Private one. */
 };
+/** @} */
 
 #endif
 

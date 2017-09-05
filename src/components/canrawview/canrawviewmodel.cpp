@@ -17,7 +17,7 @@ CanRawViewModel::CanRawViewModel()
   :
     canRawView
     {
-        UsesUIBackendCtor_ActionD
+        UsesBackendCtor_ActionD
 /*      , [](CanRawView& v)
         {
             assert(nullptr != v.impl());

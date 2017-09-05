@@ -35,7 +35,8 @@ class CanRawViewPrivate
 
  public:
 
-    using WithUIBackend::WithUIBackend;
+    using WithBackend::WithBackend;
+
 
     virtual ~CanRawViewPrivate() = default;  // if delete goes through QObject
 

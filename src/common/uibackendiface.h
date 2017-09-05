@@ -2,6 +2,8 @@
 #ifndef UIBACKENDIFACE_H
 #define UIBACKENDIFACE_H
 
+#include "backendiface.h" // UsesBackendCtor*
+
 /**
  * All the UI backends per given subject must derive from UIBackend<Subject> interface.
  * User must implement at least one derived UIBackend type per unique Subject, i.e.
@@ -42,24 +44,6 @@ template<class Impl>
 constexpr UIBackendSelectorTag<Impl> UIBackendSelector{};
 #endif
 /** @}  */
-
-/** Tags usesd to select given UsesUIBackend constructor. @{ */
-template<unsigned> struct UsesUIBackendCtorTag {};
-
-using UsesUIBackendCtorTag_Explicit = UsesUIBackendCtorTag<111>;
-using UsesUIBackendCtorTag_ActionQ  = UsesUIBackendCtorTag<222>;
-using UsesUIBackendCtorTag_ActionD  = UsesUIBackendCtorTag<333>;
-using UsesUIBackendCtorTag_Selector = UsesUIBackendCtorTag<444>;
-using UsesUIBackendCtorTag_Actions  = UsesUIBackendCtorTag<556>;
-using UsesUIBackendCtorTag_Args     = UsesUIBackendCtorTag<666>;  // fallback: fully variadic
-
-constexpr UsesUIBackendCtorTag_Explicit UsesUIBackendCtor_Explicit{};
-constexpr UsesUIBackendCtorTag_ActionQ  UsesUIBackendCtor_ActionQ{};  // runs "in" q_ptr ctor
-constexpr UsesUIBackendCtorTag_ActionD  UsesUIBackendCtor_ActionD{};  // runs "in" d_ptr ctor
-constexpr UsesUIBackendCtorTag_Selector UsesUIBackendCtor_Selector{};
-constexpr UsesUIBackendCtorTag_Actions  UsesUIBackendCtor_Actions{};
-constexpr UsesUIBackendCtorTag_Args     UsesUIBackendCtor_Args{};
-/** @} */
 
 #endif
 

@@ -26,12 +26,13 @@ class CanRawView
               >
 {
     Q_OBJECT
-    Q_DECLARE_PRIVATE_D(UsesUIBackend::d_ptr.data(), CanRawView)
+    Q_DECLARE_PRIVATE_D(UsesBackend::d_ptr.data(), CanRawView)
 //                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  public:
 
-    using UsesUIBackend::UsesUIBackend;
+    using UsesBackend::UsesBackend;
+
 
     virtual ~CanRawView() = default;  // if delete goes through QObject
 

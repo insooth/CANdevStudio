@@ -36,7 +36,7 @@
  *
  *   public:
  *
- *      using UsesUIBackend::UsesUIBackend;  // brings ctors in scope
+ *      using UsesBackend::UsesBackend;  // brings ctors in scope
  *  //        ^~~ not Uses*UI*Backend
  *
  *      void foo()

@@ -81,9 +81,9 @@
  * - UsesBackend::impl()    -- returns reference to the PIMPL's "private part".
  * - WithBackend::backend() -- returns reference to the associated "backend".
  *
- * @see UsesUIBackend and WithUIBackend for example instances of "uses" and "with" templates.
- * @see UIBackendSelectorTag and UIBackendSelector for example "backend" selector utility.
- * @see UIBackend and UIBackendDefault for example two required "backend" generators.
+ * @see UsesUIBackend and WithUIBackend for examples of "uses" and "with" instances.
+ * @see UIBackendSelectorTag and UIBackendSelector for example selector utility.
+ * @see UIBackend and UIBackendDefault for example required "backend" generators.
  *
  * @{
  */

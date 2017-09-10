@@ -6,6 +6,7 @@
 #include <atomic>
 #include <functional>  // function
 #include <mutex>  // once_flag, call_once
+#include <utility> // forward
 #include <type_traits> // is_same, add_pointer
 
 
@@ -43,7 +44,7 @@ class WithExplicitInit
     /** Initialised @c init body with a given @c f action. */
     template<class F>
     explicit WithExplicitInit(F&& f)
-      : _body{f}
+      : _body{std::forward<F>(f)}
     {}
 
     /** Runs @c init against given @c _body exactly once. */
